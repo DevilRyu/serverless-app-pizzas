@@ -7,13 +7,13 @@
     "provider": {
       "name": "aws",
       "runtime": "nodejs14.x",
-      "profile": "diego",
       "region": "us-east-1",
+      "profile": "diego",
       "lambdaHashingVersion": "20201221",
       "environment": {
         "REGION": "us-east-1",
         "PENDING_ORDER_QUEUE": {
-          "Ref": "PendingOrderQueue"
+          "Ref": "PendingOrdersQueue"
         }
       },
       "iamRoleStatements": [
@@ -22,7 +22,12 @@
           "Action": [
             "sqs:SendMessage"
           ],
-          "Resource": "arn:aws:sqs:us-east-1:*:PendingOrderQueue"
+          "Resource": {
+            "Fn::GetAtt": [
+              "PendingOrdersQueue",
+              "Arn"
+            ]
+          }
         }
       ],
       "stage": "dev",
@@ -106,6 +111,12 @@
               "LogGroupName": "/aws/lambda/pedirPizzas-dev-hacerPedido"
             }
           },
+          "PrepararPedidoLogGroup": {
+            "Type": "AWS::Logs::LogGroup",
+            "Properties": {
+              "LogGroupName": "/aws/lambda/pedirPizzas-dev-prepararPedido"
+            }
+          },
           "IamRoleLambdaExecution": {
             "Type": "AWS::IAM::Role",
             "Properties": {
@@ -165,6 +176,22 @@
                       },
                       {
                         "$ref": "$[\"service\"][\"provider\"][\"iamRoleStatements\"][0]"
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "sqs:ReceiveMessage",
+                          "sqs:DeleteMessage",
+                          "sqs:GetQueueAttributes"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::GetAtt": [
+                              "PendingOrdersQueue",
+                              "Arn"
+                            ]
+                          }
+                        ]
                       }
                     ]
                   }
@@ -193,11 +220,45 @@
                 "S3Bucket": {
                   "Ref": "ServerlessDeploymentBucket"
                 },
-                "S3Key": "serverless/pedirPizzas/dev/1634662062950-2021-10-19T16:47:42.950Z/pedirPizzas.zip"
+                "S3Key": "serverless/pedirPizzas/dev/1634685566017-2021-10-19T23:19:26.017Z/pedirPizzas.zip"
               },
               "Handler": "handler.hacerPedido",
               "Runtime": "nodejs14.x",
               "FunctionName": "pedirPizzas-dev-hacerPedido",
+              "MemorySize": 1024,
+              "Timeout": 6,
+              "Environment": {
+                "Variables": {
+                  "REGION": "us-east-1",
+                  "PENDING_ORDER_QUEUE": {
+                    "$ref": "$[\"service\"][\"provider\"][\"environment\"][\"PENDING_ORDER_QUEUE\"]"
+                  }
+                }
+              },
+              "Role": {
+                "Fn::GetAtt": [
+                  "HacerPedidoIamRoleLambdaExecution",
+                  "Arn"
+                ]
+              }
+            },
+            "DependsOn": [
+              "HacerPedidoIamRoleLambdaExecution",
+              "HacerPedidoLogGroup"
+            ]
+          },
+          "PrepararPedidoLambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+              "Code": {
+                "S3Bucket": {
+                  "Ref": "ServerlessDeploymentBucket"
+                },
+                "S3Key": "serverless/pedirPizzas/dev/1634685566017-2021-10-19T23:19:26.017Z/pedirPizzas.zip"
+              },
+              "Handler": "handler.prepararPedido",
+              "Runtime": "nodejs14.x",
+              "FunctionName": "pedirPizzas-dev-prepararPedido",
               "MemorySize": 1024,
               "Timeout": 6,
               "Environment": {
@@ -216,17 +277,27 @@
               }
             },
             "DependsOn": [
-              "HacerPedidoLogGroup"
+              "PrepararPedidoLogGroup"
             ]
           },
-          "HacerPedidoLambdaVersionrDDWOpq29vDXA8gHhfEhfrC2UgXiYcWFOC9ygkg": {
+          "HacerPedidoLambdaVersionSfXtu0kHXoVTIO8lIHvqnykxabAEjhpsggBJKrTjuA": {
             "Type": "AWS::Lambda::Version",
             "DeletionPolicy": "Retain",
             "Properties": {
               "FunctionName": {
                 "Ref": "HacerPedidoLambdaFunction"
               },
-              "CodeSha256": "DT918dvaxyQgQxpQnPVFhoC+DtgCi4orB9HO1qd/uoo="
+              "CodeSha256": "LuXm2MHwMCEgxmMOCEvWVV7hgwUVdJ8aop/LOuD8BCw="
+            }
+          },
+          "PrepararPedidoLambdaVersionuoq99vYqm04tNcMZYV6jHRq04kcu2dIZZ9955nCvw1s": {
+            "Type": "AWS::Lambda::Version",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+              "FunctionName": {
+                "Ref": "PrepararPedidoLambdaFunction"
+              },
+              "CodeSha256": "LuXm2MHwMCEgxmMOCEvWVV7hgwUVdJ8aop/LOuD8BCw="
             }
           },
           "ApiGatewayRestApi": {
@@ -302,7 +373,7 @@
               "HacerPedidoLambdaPermissionApiGateway"
             ]
           },
-          "ApiGatewayDeployment1634662060937": {
+          "ApiGatewayDeployment1634685560884": {
             "Type": "AWS::ApiGateway::Deployment",
             "Properties": {
               "RestApiId": {
@@ -351,10 +422,116 @@
               }
             }
           },
-          "PendingOrderQueue": {
+          "PrepararPedidoEventSourceMappingSQSPendingOrdersQueue": {
+            "Type": "AWS::Lambda::EventSourceMapping",
+            "DependsOn": [
+              "IamRoleLambdaExecution"
+            ],
+            "Properties": {
+              "BatchSize": 1,
+              "EventSourceArn": {
+                "Fn::GetAtt": [
+                  "PendingOrdersQueue",
+                  "Arn"
+                ]
+              },
+              "FunctionName": {
+                "Fn::GetAtt": [
+                  "PrepararPedidoLambdaFunction",
+                  "Arn"
+                ]
+              },
+              "Enabled": true
+            }
+          },
+          "HacerPedidoIamRoleLambdaExecution": {
+            "Type": "AWS::IAM::Role",
+            "Properties": {
+              "AssumeRolePolicyDocument": {
+                "Version": "2012-10-17",
+                "Statement": [
+                  {
+                    "Effect": "Allow",
+                    "Principal": {
+                      "Service": [
+                        "lambda.amazonaws.com"
+                      ]
+                    },
+                    "Action": [
+                      "sts:AssumeRole"
+                    ]
+                  }
+                ]
+              },
+              "Policies": [
+                {
+                  "PolicyName": {
+                    "Fn::Join": [
+                      "-",
+                      [
+                        "pedirPizzas",
+                        "dev",
+                        "lambda"
+                      ]
+                    ]
+                  },
+                  "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "logs:CreateLogStream",
+                          "logs:CreateLogGroup",
+                          "logs:PutLogEvents"
+                        ],
+                        "Resource": [
+                          {
+                            "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/pedirPizzas-dev-hacerPedido:*:*"
+                          }
+                        ]
+                      },
+                      {
+                        "$ref": "$[\"service\"][\"provider\"][\"iamRoleStatements\"][0]"
+                      },
+                      {
+                        "Effect": "Allow",
+                        "Action": [
+                          "sqs:SendMessage"
+                        ],
+                        "Resource": {
+                          "Fn::GetAtt": [
+                            "PendingOrdersQueue",
+                            "Arn"
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "Path": "/",
+              "RoleName": {
+                "Fn::Join": [
+                  "-",
+                  [
+                    "pedirPizzas",
+                    "dev",
+                    "hacerPedido",
+                    {
+                      "Ref": "AWS::Region"
+                    },
+                    "lambdaRole"
+                  ]
+                ]
+              },
+              "ManagedPolicyArns": []
+            }
+          },
+          "PendingOrdersQueue": {
             "Type": "AWS::SQS::Queue",
             "Properties": {
-              "QueueName": "PendingOrderQueue"
+              "QueueName": "PendingOrdersQueue"
             }
           }
         },
@@ -370,10 +547,19 @@
           "HacerPedidoLambdaFunctionQualifiedArn": {
             "Description": "Current Lambda function version",
             "Value": {
-              "Ref": "HacerPedidoLambdaVersionrDDWOpq29vDXA8gHhfEhfrC2UgXiYcWFOC9ygkg"
+              "Ref": "HacerPedidoLambdaVersionSfXtu0kHXoVTIO8lIHvqnykxabAEjhpsggBJKrTjuA"
             },
             "Export": {
               "Name": "sls-pedirPizzas-dev-HacerPedidoLambdaFunctionQualifiedArn"
+            }
+          },
+          "PrepararPedidoLambdaFunctionQualifiedArn": {
+            "Description": "Current Lambda function version",
+            "Value": {
+              "Ref": "PrepararPedidoLambdaVersionuoq99vYqm04tNcMZYV6jHRq04kcu2dIZZ9955nCvw1s"
+            },
+            "Export": {
+              "Name": "sls-pedirPizzas-dev-PrepararPedidoLambdaFunctionQualifiedArn"
             }
           },
           "ServiceEndpoint": {
@@ -488,10 +674,19 @@
       },
       "vpc": {}
     },
+    "plugins": [
+      "serverless-iam-roles-per-function"
+    ],
     "pluginsData": {},
     "functions": {
       "hacerPedido": {
         "handler": "handler.hacerPedido",
+        "iamRoleStatementsInherit": true,
+        "iamRoleStatements": [
+          {
+            "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"HacerPedidoIamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][2]"
+          }
+        ],
         "events": [
           {
             "http": {
@@ -507,15 +702,36 @@
         "timeout": 6,
         "runtime": "nodejs14.x",
         "vpc": {},
-        "versionLogicalId": "HacerPedidoLambdaVersionrDDWOpq29vDXA8gHhfEhfrC2UgXiYcWFOC9ygkg"
+        "versionLogicalId": "HacerPedidoLambdaVersionSfXtu0kHXoVTIO8lIHvqnykxabAEjhpsggBJKrTjuA"
+      },
+      "prepararPedido": {
+        "handler": "handler.prepararPedido",
+        "iamRoleStatementsInherit": false,
+        "events": [
+          {
+            "sqs": {
+              "arn": {
+                "$ref": "$[\"service\"][\"provider\"][\"compiledCloudFormationTemplate\"][\"Resources\"][\"IamRoleLambdaExecution\"][\"Properties\"][\"Policies\"][0][\"PolicyDocument\"][\"Statement\"][3][\"Resource\"][0]"
+              },
+              "batchSize": 1
+            }
+          }
+        ],
+        "name": "pedirPizzas-dev-prepararPedido",
+        "package": {},
+        "memory": 1024,
+        "timeout": 6,
+        "runtime": "nodejs14.x",
+        "vpc": {},
+        "versionLogicalId": "PrepararPedidoLambdaVersionuoq99vYqm04tNcMZYV6jHRq04kcu2dIZZ9955nCvw1s"
       }
     },
     "resources": {
       "Resources": {
-        "PendingOrderQueue": {
+        "PendingOrdersQueue": {
           "Type": "AWS::SQS::Queue",
           "Properties": {
-            "QueueName": "PendingOrderQueue"
+            "QueueName": "PendingOrdersQueue"
           }
         }
       },
@@ -527,9 +743,11 @@
       "service": {
         "$ref": "$[\"service\"][\"serviceObject\"]"
       },
-      "frameworkVersion": "2",
       "provider": {
         "$ref": "$[\"service\"][\"provider\"]"
+      },
+      "plugins": {
+        "$ref": "$[\"service\"][\"plugins\"]"
       },
       "functions": {
         "$ref": "$[\"service\"][\"functions\"]"
@@ -543,7 +761,7 @@
     "artifact": "/Users/diegomunoz/Documents/Kushki/Proyectos/Pruebas/pedirPizzas/.serverless/pedirPizzas.zip"
   },
   "package": {
-    "artifactDirectoryName": "serverless/pedirPizzas/dev/1634662062950-2021-10-19T16:47:42.950Z",
+    "artifactDirectoryName": "serverless/pedirPizzas/dev/1634685566017-2021-10-19T23:19:26.017Z",
     "artifact": "pedirPizzas.zip"
   }
 }

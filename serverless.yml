@@ -1,35 +1,60 @@
 service: pedirPizzas
-frameworkVersion: '2'
 
 provider:
   name: aws
   runtime: nodejs14.x
-  profile: diego
   region: us-east-1
+  profile: diego
   lambdaHashingVersion: 20201221
 
   environment:
     REGION: ${self:provider.region}
     PENDING_ORDER_QUEUE:
-      Ref: PendingOrderQueue
+      Ref: PendingOrdersQueue
 
   iamRoleStatements:
-    - Effect: "Allow"
+    - Effect: 'Allow'
       Action:
-        - "sqs:SendMessage"
-      Resource: "arn:aws:sqs:${self:provider.region}:*:PendingOrderQueue"
+        - sqs:SendMessage
+      Resource:
+        Fn::GetAtt:
+          - PendingOrdersQueue
+          - Arn
+
+plugins:
+  - serverless-iam-roles-per-function
 
 functions:
   hacerPedido:
     handler: handler.hacerPedido
+    iamRoleStatementsInherit: true
+    iamRoleStatements:
+      - Effect: 'Allow'
+        Action:
+          - sqs:SendMessage
+        Resource:
+          Fn::GetAtt:
+            - PendingOrdersQueue
+            - Arn
     events:
       - http:
           method: post
           path: pedido
 
+  prepararPedido:
+    handler: handler.prepararPedido
+    iamRoleStatementsInherit: false
+    events:
+      - sqs:
+          arn:
+            Fn::GetAtt:
+              - PendingOrdersQueue
+              - Arn
+          batchSize: 1
+
 resources:
   Resources:
-    PendingOrderQueue:
-      Type: "AWS::SQS::Queue"
+    PendingOrdersQueue:
+      Type: 'AWS::SQS::Queue'
       Properties:
-        QueueName: "PendingOrderQueue"
+        QueueName: 'PendingOrdersQueue'
