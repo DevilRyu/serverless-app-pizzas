@@ -1,0 +1,35 @@
+service: pedirPizzas
+frameworkVersion: '2'
+
+provider:
+  name: aws
+  runtime: nodejs14.x
+  profile: diego
+  region: us-east-1
+  lambdaHashingVersion: 20201221
+
+  environment:
+    REGION: ${self:provider.region}
+    PENDING_ORDER_QUEUE:
+      Ref: PendingOrderQueue
+
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+        - "sqs:SendMessage"
+      Resource: "arn:aws:sqs:${self:provider.region}:*:PendingOrderQueue"
+
+functions:
+  hacerPedido:
+    handler: handler.hacerPedido
+    events:
+      - http:
+          method: post
+          path: pedido
+
+resources:
+  Resources:
+    PendingOrderQueue:
+      Type: "AWS::SQS::Queue"
+      Properties:
+        QueueName: "PendingOrderQueue"
