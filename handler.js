@@ -1,16 +1,22 @@
 'use strict';
 
 const {v4: uuidv4} = require('uuid');
-const { SQSClient, SendMessageCommand } = require("@aws-sdk/client-sqs");
+const {SQSClient, SendMessageCommand} = require("@aws-sdk/client-sqs");
 
 let sqs = new SQSClient({region: process.env.REGION});
 const QUEUE_URL = process.env.PENDING_ORDER_QUEUE;
 
 module.exports.hacerPedido = async (event, context, callback) => {
 
-    const orderId = uuidv4();
+    const {name, address, pizzas} = JSON.parse(event.body);
+    const order = {
+        orderId: uuidv4(),
+        name,
+        address,
+        pizzas
+    }
     const params = {
-        MessageBody: JSON.stringify({orderId}),
+        MessageBody: JSON.stringify(order),
         QueueUrl: QUEUE_URL
     };
 
@@ -18,7 +24,7 @@ module.exports.hacerPedido = async (event, context, callback) => {
 
         const data = await sqs.send(new SendMessageCommand(params));
         const message = {
-            orderId,
+            order,
             messageId: data.MessageId
         };
         sendResponse(200, message, callback);
