@@ -1,4 +1,4 @@
-const {DynamoDBClient, PutItemCommand, UpdateItemCommand} = require("@aws-sdk/client-dynamodb");
+const {DynamoDBClient, PutItemCommand, UpdateItemCommand, GetItemCommand} = require("@aws-sdk/client-dynamodb");
 
 const ddbClient = new DynamoDBClient({region: process.env.REGION});
 
@@ -50,6 +50,22 @@ module.exports.deliverOrder = orderId => {
         return response.Attributes;
     });
 
+};
+
+module.exports.getOrder = orderId => {
+    console.log('getOrder llamada');
+
+    const params = {
+        TableName: process.env.COMPLETED_ORDER_TABLE,
+        Key: {
+            orderId: {S: orderId}
+        }
+    };
+
+    return ddbClient.send(new GetItemCommand(params))
+        .then(item => {
+            return item.Item;
+        });
 };
 
 const formatoDynamo = (order) => {

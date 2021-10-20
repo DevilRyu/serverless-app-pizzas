@@ -93,6 +93,13 @@ functions:
               - CompletedOrdersTable
               - StreamArn
 
+  checkearEstadoPedido:
+    handler: handler.checkearEstadoPedido
+    events:
+      - http:
+          method: get
+          path: pedido/{orderId}
+
 resources:
   Resources:
 

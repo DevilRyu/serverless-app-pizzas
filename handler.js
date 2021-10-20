@@ -2,7 +2,7 @@
 
 const {v4: uuidv4} = require('uuid');
 const {SQSClient, SendMessageCommand} = require("@aws-sdk/client-sqs");
-const {saveCompletedOrder, deliverOrder} = require('orderMetadataManager')
+const {saveCompletedOrder, deliverOrder, getOrder} = require('orderMetadataManager')
 
 let sqs = new SQSClient({region: process.env.REGION});
 const QUEUE_URL = process.env.PENDING_ORDER_QUEUE;
@@ -76,6 +76,33 @@ module.exports.enviarPedido = async (event, context, callback) => {
     } else {
         console.log('is not a new record');
         callback();
+    }
+};
+
+module.exports.checkearEstadoPedido = async (event, context, callback) => {
+    console.log('checkearEstadoPedido fue llamada');
+
+    const orderId = event.pathParameters && event.pathParameters.orderId;
+
+    if (orderId !== null) {
+        try {
+            const data = await getOrder(orderId);
+            console.log(data);
+            sendResponse(
+                200,
+                {message: `El estado de la orden: ${orderId} es ${data.delivery_status.S}`},
+                callback
+            );
+        } catch (err) {
+            console.error(err);
+            sendResponse(
+                500,
+                {message:'Hubo un error al procesar el pedido'},
+                callback
+            );
+        }
+    } else {
+        sendResponse(400, 'Falta el orderId', callback);
     }
 };
 
