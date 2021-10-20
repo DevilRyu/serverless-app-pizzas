@@ -1,1 +1,1 @@
-# serverless-app-pizzas
+# Aplicación de pedido de pizzas que usa serverless framework
