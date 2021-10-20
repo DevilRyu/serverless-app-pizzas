@@ -155,6 +155,21 @@
                 {
                   "Effect": "Allow",
                   "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:DeleteItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "CompletedOrdersTable",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
                     "sqs:ReceiveMessage",
                     "sqs:DeleteMessage",
                     "sqs:GetQueueAttributes"
@@ -195,7 +210,7 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/pedirPizzas/dev/1634733603398-2021-10-20T12:40:03.398Z/pedirPizzas.zip"
+          "S3Key": "serverless/pedirPizzas/dev/1634748401700-2021-10-20T16:46:41.700Z/pedirPizzas.zip"
         },
         "Handler": "handler.hacerPedido",
         "Runtime": "nodejs14.x",
@@ -207,7 +222,8 @@
             "REGION": "us-east-1",
             "PENDING_ORDER_QUEUE": {
               "Ref": "PendingOrdersQueue"
-            }
+            },
+            "COMPLETED_ORDER_TABLE": "CompletedOrdersTable"
           }
         },
         "Role": {
@@ -229,7 +245,7 @@
           "S3Bucket": {
             "Ref": "ServerlessDeploymentBucket"
           },
-          "S3Key": "serverless/pedirPizzas/dev/1634733603398-2021-10-20T12:40:03.398Z/pedirPizzas.zip"
+          "S3Key": "serverless/pedirPizzas/dev/1634748401700-2021-10-20T16:46:41.700Z/pedirPizzas.zip"
         },
         "Handler": "handler.prepararPedido",
         "Runtime": "nodejs14.x",
@@ -241,7 +257,8 @@
             "REGION": "us-east-1",
             "PENDING_ORDER_QUEUE": {
               "Ref": "PendingOrdersQueue"
-            }
+            },
+            "COMPLETED_ORDER_TABLE": "CompletedOrdersTable"
           }
         },
         "Role": {
@@ -255,24 +272,24 @@
         "PrepararPedidoLogGroup"
       ]
     },
-    "HacerPedidoLambdaVersionKWGZbXDpn2hgNQiPyCv2eON5Jo74PqcjLoGAmGNT4": {
+    "HacerPedidoLambdaVersionCzdNBxCuEHlLq9oDwTO6GUZhV2M4TBIeRceAlqO4": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "HacerPedidoLambdaFunction"
         },
-        "CodeSha256": "pTYJ+iBuyJIsDqIzo7Vz2ihi3KBDEmkD+T/TJT0H/0w="
+        "CodeSha256": "U7ErvcBTOq+5r/aqxbVYUk0Rp0DBIfny9TH/+UjJ8LU="
       }
     },
-    "PrepararPedidoLambdaVersioncc0UGChvCXwKDBRif9bWf7nCC5ChJ2Y1mb8N3Prg": {
+    "PrepararPedidoLambdaVersionQG1Gk4WDBlRVBYtcXj7LU8WZEqivQecfsIMX1GVBd0": {
       "Type": "AWS::Lambda::Version",
       "DeletionPolicy": "Retain",
       "Properties": {
         "FunctionName": {
           "Ref": "PrepararPedidoLambdaFunction"
         },
-        "CodeSha256": "pTYJ+iBuyJIsDqIzo7Vz2ihi3KBDEmkD+T/TJT0H/0w="
+        "CodeSha256": "U7ErvcBTOq+5r/aqxbVYUk0Rp0DBIfny9TH/+UjJ8LU="
       }
     },
     "ApiGatewayRestApi": {
@@ -348,7 +365,7 @@
         "HacerPedidoLambdaPermissionApiGateway"
       ]
     },
-    "ApiGatewayDeployment1634733597948": {
+    "ApiGatewayDeployment1634748395253": {
       "Type": "AWS::ApiGateway::Deployment",
       "Properties": {
         "RestApiId": {
@@ -419,6 +436,174 @@
         "Enabled": true
       }
     },
+    "pedirPizzasDynamoDBAutoscaleRoleCompletedOrdersTableDevUseast1": {
+      "DependsOn": [
+        "CompletedOrdersTable"
+      ],
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "application-autoscaling.amazonaws.com"
+              }
+            }
+          ],
+          "Version": "2012-10-17"
+        },
+        "Policies": [
+          {
+            "PolicyDocument": {
+              "Statement": [
+                {
+                  "Action": [
+                    "cloudwatch:PutMetricAlarm",
+                    "cloudwatch:DescribeAlarms",
+                    "cloudwatch:DeleteAlarms",
+                    "cloudwatch:GetMetricStatistics",
+                    "cloudwatch:SetAlarmState"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": "*"
+                },
+                {
+                  "Action": [
+                    "dynamodb:DescribeTable",
+                    "dynamodb:UpdateTable"
+                  ],
+                  "Effect": "Allow",
+                  "Resource": {
+                    "Fn::Join": [
+                      "",
+                      [
+                        "arn:aws:dynamodb:*:",
+                        {
+                          "Ref": "AWS::AccountId"
+                        },
+                        ":table/",
+                        {
+                          "Ref": "CompletedOrdersTable"
+                        }
+                      ]
+                    ]
+                  }
+                }
+              ],
+              "Version": "2012-10-17"
+            },
+            "PolicyName": "pedirPizzasDynamoDBAutoscalePolicyCompletedOrdersTableDevUseast1"
+          }
+        ],
+        "RoleName": "pedirPizzasDynamoDBAutoscaleRoleCompletedOrdersTableDevUseast1"
+      },
+      "Type": "AWS::IAM::Role"
+    },
+    "pedirPizzasTableScalingPolicyReadCompletedOrdersTableDevUseast1": {
+      "DependsOn": [
+        "CompletedOrdersTable",
+        "pedirPizzasAutoScalingTargetReadCompletedOrdersTableDevUseast1"
+      ],
+      "Properties": {
+        "PolicyName": "pedirPizzasTableScalingPolicyReadCompletedOrdersTableDevUseast1",
+        "PolicyType": "TargetTrackingScaling",
+        "ScalingTargetId": {
+          "Ref": "pedirPizzasAutoScalingTargetReadCompletedOrdersTableDevUseast1"
+        },
+        "TargetTrackingScalingPolicyConfiguration": {
+          "PredefinedMetricSpecification": {
+            "PredefinedMetricType": "DynamoDBReadCapacityUtilization"
+          },
+          "ScaleInCooldown": 60,
+          "ScaleOutCooldown": 60,
+          "TargetValue": 75
+        }
+      },
+      "Type": "AWS::ApplicationAutoScaling::ScalingPolicy"
+    },
+    "pedirPizzasAutoScalingTargetReadCompletedOrdersTableDevUseast1": {
+      "DependsOn": [
+        "CompletedOrdersTable",
+        "pedirPizzasDynamoDBAutoscaleRoleCompletedOrdersTableDevUseast1"
+      ],
+      "Properties": {
+        "MaxCapacity": 3,
+        "MinCapacity": 1,
+        "ResourceId": {
+          "Fn::Join": [
+            "",
+            [
+              "table/",
+              {
+                "Ref": "CompletedOrdersTable"
+              }
+            ]
+          ]
+        },
+        "RoleARN": {
+          "Fn::GetAtt": [
+            "pedirPizzasDynamoDBAutoscaleRoleCompletedOrdersTableDevUseast1",
+            "Arn"
+          ]
+        },
+        "ScalableDimension": "dynamodb:table:ReadCapacityUnits",
+        "ServiceNamespace": "dynamodb"
+      },
+      "Type": "AWS::ApplicationAutoScaling::ScalableTarget"
+    },
+    "pedirPizzasTableScalingPolicyWriteCompletedOrdersTableDevUseast1": {
+      "DependsOn": [
+        "CompletedOrdersTable",
+        "pedirPizzasAutoScalingTargetWriteCompletedOrdersTableDevUseast1"
+      ],
+      "Properties": {
+        "PolicyName": "pedirPizzasTableScalingPolicyWriteCompletedOrdersTableDevUseast1",
+        "PolicyType": "TargetTrackingScaling",
+        "ScalingTargetId": {
+          "Ref": "pedirPizzasAutoScalingTargetWriteCompletedOrdersTableDevUseast1"
+        },
+        "TargetTrackingScalingPolicyConfiguration": {
+          "PredefinedMetricSpecification": {
+            "PredefinedMetricType": "DynamoDBWriteCapacityUtilization"
+          },
+          "ScaleInCooldown": 60,
+          "ScaleOutCooldown": 60,
+          "TargetValue": 75
+        }
+      },
+      "Type": "AWS::ApplicationAutoScaling::ScalingPolicy"
+    },
+    "pedirPizzasAutoScalingTargetWriteCompletedOrdersTableDevUseast1": {
+      "DependsOn": [
+        "CompletedOrdersTable",
+        "pedirPizzasDynamoDBAutoscaleRoleCompletedOrdersTableDevUseast1"
+      ],
+      "Properties": {
+        "MaxCapacity": 3,
+        "MinCapacity": 1,
+        "ResourceId": {
+          "Fn::Join": [
+            "",
+            [
+              "table/",
+              {
+                "Ref": "CompletedOrdersTable"
+              }
+            ]
+          ]
+        },
+        "RoleARN": {
+          "Fn::GetAtt": [
+            "pedirPizzasDynamoDBAutoscaleRoleCompletedOrdersTableDevUseast1",
+            "Arn"
+          ]
+        },
+        "ScalableDimension": "dynamodb:table:WriteCapacityUnits",
+        "ServiceNamespace": "dynamodb"
+      },
+      "Type": "AWS::ApplicationAutoScaling::ScalableTarget"
+    },
     "HacerPedidoIamRoleLambdaExecution": {
       "Type": "AWS::IAM::Role",
       "Properties": {
@@ -481,6 +666,21 @@
                 {
                   "Effect": "Allow",
                   "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:DeleteItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "CompletedOrdersTable",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
                     "sqs:SendMessage"
                   ],
                   "Resource": {
@@ -517,6 +717,28 @@
       "Properties": {
         "QueueName": "PendingOrdersQueue"
       }
+    },
+    "CompletedOrdersTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "CompletedOrdersTable",
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 1,
+          "WriteCapacityUnits": 1
+        },
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "orderId",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "orderId",
+            "KeyType": "HASH"
+          }
+        ]
+      }
     }
   },
   "Outputs": {
@@ -531,7 +753,7 @@
     "HacerPedidoLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "HacerPedidoLambdaVersionKWGZbXDpn2hgNQiPyCv2eON5Jo74PqcjLoGAmGNT4"
+        "Ref": "HacerPedidoLambdaVersionCzdNBxCuEHlLq9oDwTO6GUZhV2M4TBIeRceAlqO4"
       },
       "Export": {
         "Name": "sls-pedirPizzas-dev-HacerPedidoLambdaFunctionQualifiedArn"
@@ -540,7 +762,7 @@
     "PrepararPedidoLambdaFunctionQualifiedArn": {
       "Description": "Current Lambda function version",
       "Value": {
-        "Ref": "PrepararPedidoLambdaVersioncc0UGChvCXwKDBRif9bWf7nCC5ChJ2Y1mb8N3Prg"
+        "Ref": "PrepararPedidoLambdaVersionQG1Gk4WDBlRVBYtcXj7LU8WZEqivQecfsIMX1GVBd0"
       },
       "Export": {
         "Name": "sls-pedirPizzas-dev-PrepararPedidoLambdaFunctionQualifiedArn"

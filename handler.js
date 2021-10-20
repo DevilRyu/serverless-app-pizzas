@@ -2,6 +2,7 @@
 
 const {v4: uuidv4} = require('uuid');
 const {SQSClient, SendMessageCommand} = require("@aws-sdk/client-sqs");
+const {saveCompletedOrder} = require('orderMetadataManager')
 
 let sqs = new SQSClient({region: process.env.REGION});
 const QUEUE_URL = process.env.PENDING_ORDER_QUEUE;
@@ -39,9 +40,17 @@ module.exports.hacerPedido = async (event, context, callback) => {
 
 module.exports.prepararPedido = async (event, context, callback) => {
 
-    console.log('prepararPedido fue llamada');
+    console.log('preparar Pedido fue llamada');
 
-    callback();
+    const order = JSON.parse(event.Records[0].body);
+
+    try {
+        const data = await saveCompletedOrder(order);
+        callback();
+    } catch (err) {
+        console.error(err);
+        callback(err);
+    }
 
 };
 

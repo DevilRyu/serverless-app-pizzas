@@ -1,6 +1,7 @@
 service: pedirPizzas
 
 provider:
+
   name: aws
   runtime: nodejs14.x
   region: us-east-1
@@ -11,8 +12,10 @@ provider:
     REGION: ${self:provider.region}
     PENDING_ORDER_QUEUE:
       Ref: PendingOrdersQueue
+    COMPLETED_ORDER_TABLE: CompletedOrdersTable
 
   iamRoleStatements:
+
     - Effect: 'Allow'
       Action:
         - sqs:SendMessage
@@ -21,10 +24,36 @@ provider:
           - PendingOrdersQueue
           - Arn
 
+    - Effect: Allow
+      Action:
+        - dynamodb:GetItem
+        - dynamodb:PutItem
+        - dynamodb:UpdateItem
+        - dynamodb:DeleteItem
+      Resource:
+        Fn::GetAtt:
+          - CompletedOrdersTable
+          - Arn
+
 plugins:
   - serverless-iam-roles-per-function
+  - serverless-dynamodb-autoscaling
+
+custom:
+
+  capacities:
+    - table: ${self:provider.environment.COMPLETED_ORDER_TABLE}
+      read:
+        minimum: 1
+        maximum: 3
+        usage: 0.75
+      write:
+        minimum: 1
+        maximum: 3
+        usage: 0.75
 
 functions:
+
   hacerPedido:
     handler: handler.hacerPedido
     iamRoleStatementsInherit: true
@@ -54,7 +83,22 @@ functions:
 
 resources:
   Resources:
+
     PendingOrdersQueue:
       Type: 'AWS::SQS::Queue'
       Properties:
         QueueName: 'PendingOrdersQueue'
+
+    CompletedOrdersTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:provider.environment.COMPLETED_ORDER_TABLE}
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        AttributeDefinitions:
+          - AttributeName: "orderId"
+            AttributeType: "S"
+        KeySchema:
+          - AttributeName: "orderId"
+            KeyType: "HASH"
