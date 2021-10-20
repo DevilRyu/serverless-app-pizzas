@@ -1,4 +1,4 @@
-const {DynamoDBClient, PutItemCommand} = require("@aws-sdk/client-dynamodb");
+const {DynamoDBClient, PutItemCommand, UpdateItemCommand} = require("@aws-sdk/client-dynamodb");
 
 const ddbClient = new DynamoDBClient({region: process.env.REGION});
 
@@ -15,7 +15,7 @@ const ddbClient = new DynamoDBClient({region: process.env.REGION});
 
 module.exports.saveCompletedOrder = order => {
 
-    console.log('Guardar un pedido fue llamado');
+    console.log('Guardar un pedido fue llamada');
 
     order.delivery_status = 'READY_FOR_DELIVERY';
 
@@ -25,6 +25,30 @@ module.exports.saveCompletedOrder = order => {
     };
 
     return ddbClient.send(new PutItemCommand(params));
+
+};
+
+module.exports.deliverOrder = orderId => {
+    console.log('Enviar una orden fue llamada');
+
+    const params = {
+        TableName: process.env.COMPLETED_ORDER_TABLE,
+        Key: {
+            orderId
+        },
+        ConditionExpression: 'attribute_exists(orderId)',
+        UpdateExpression: 'SET delivery_status = :v',
+        ExpressionAttributeValues: {
+            ':v': {S: 'DELIVERED'}
+        },
+        ReturnValues: 'ALL_NEW'
+    };
+
+
+    return ddbClient.send(new UpdateItemCommand(params)).then(response => {
+        console.log('order delivered');
+        return response.Attributes;
+    });
 
 };
 
